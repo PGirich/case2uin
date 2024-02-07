@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Формирование УИН ФССП России</title>
+</head>
+<style>
+  .thumb {
+    height: 75px;
+    border: 1px solid #000;
+    margin: 10px 5px 0 0;
+  }
+
+  div {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 1px;
+  }
+  div#border {
+    border: 1px dotted red;
+    margin: 20px;
+  }
+  div#outline {
+    outline: 1px solid red;
+    outline-offset: -2px;
+  }
+  input.editbox {
+    padding: 2px;
+    margin: 2px;
+  }
+  .select {
+    padding: 2px;
+    margin: 2px;
+    border: 2px solid black;
+  }
+  input:invalid {
+    border: 2px dashed red;
+    box-shadow: 0 0 5px 1px red;
+  }
+  input:valid {
+    border: 2px solid black;
+    box-shadow: none;
+  }
+</style>
+<body>
+<div id="outline">
+  <p>
+    Формирование УИН ФССП России для указания в материалах дела, направляемых в суд, по взысканиям, адинистрируемым ФССП России
+  </p>
+  <p>
+    <a
+      href="https://fssp.gov.ru/files/fssp/db/files/00smev2022/trebovaniya_k_formirovaniu_uin_v4_20220620_20226271547.pdf"
+      >Требования к формированию уникального идентификатора начислений в
+      документах ФССП России, предназначенного для идентификации начисления</a
+    >, опубликованы на
+    <a href="https://fssp.gov.ru/mvv_fssp/">сайте ФССП России</a>
+  </p>
+</div>
+
+<div id="border">
+  <p class="name">Укажите параметры для получения УИН:</p>
+  <label for="editboxNo">№: </label>
+  <input
+    type="text"
+    class="editbox"
+    id="editboxNo"
+    value="123456"
+    style="width:60px;"
+    pattern="^\d{1,7}$"
+    required
+    title="уникальный номер в году, от 1 до 7 цифр"
+    /><br>
+  <label for="editboxYr">год: </label>
+  <input
+    type="text"
+    class="editbox"
+    id="editboxYr"
+    value="24"
+    style="width:20px;"
+    pattern="^2\d{1}$"
+    required
+    title="две цифры года, в котором номер уникален"
+    /><br>
+  <label for="editboxDv">код ТО по ВКСП: </label>
+  <input
+    type="text"
+    class="editbox"
+    id="editboxDv"
+    value="77"
+    style="width:20px;"
+    pattern="^\d{2}$"
+    required
+    title="две цифры кода ТО ФССП России по справочнику ВКСП"
+    /><br>
+  <label for="editboxTp">тип: </label>
+  <input
+    type="text"
+    class="editbox"
+    id="editboxTp"
+    value="04"
+    style="width:20px;"
+    pattern="^\d{2}$"
+    required
+    title="две цифры кода типа дохода"
+    />
+  <select
+    class="select"
+    id="selectTp"
+    required=true
+    style="width:200px;"
+    ></select><br>
+  <p class="name"><br>Сформированный по параметрам УИН:</p>
+  <label for="editboxUIN">УИН суд.акта: </label>
+  <input
+    type="text"
+    class="select"
+    id="editboxUIN"
+    value="32224000230123456992"
+    pattern="^322\d{17}$"
+    required
+    title="УИН 322* (20 цифр) - номер начисления, которое будет сформировано по выданному судом акту"
+  />
+  <br><h5>
+  <div id="labelUINType"></div>
+  <div id="debug"></div>
+</div>
+
+<div id="outline">
+<p>
+  Порядок действий при назначении УИН материалам дела, направляемым в суд
+</p>
+<p>
+  1. Уточнить в реестре выданных УИН очередной свободный порядковый номер в этом ТО ФССП России, в этом году.<br>
+  2. С помощью данной веб-страницы сформировать УИН и указать его в материалах дела.<br>
+  3. Зарегистрировать выданный УИН в реестре под выбранным порядковым номером.<br>
+  4. Информация, введенная в поля данной веб-страницы нигде не сохраняется. Начисление не формируется и в ГИС ГМП не направляется.<br>
+  5. Пользователь отвечает за уникальность назначенного УИН. Неуникальность УИН приведет к недополучению бюджетом средств (погашенная сумма будет учитываться сразу по двум исполнительным документам.
+</p>
+</div>
+
+
+
+
+
+
+<script>
+  // автор: Гирич Петр Николаевич, girich@fssp.gov.ru
+  // 29.01.2024 
+
+  //===========================
+  // Контрольный разряд уникального идентификатора начисления рассчитывается в следующем порядке:
+  // каждому разряду уникального идентификатора начисления (первые 19 разрядов для 20-значного либо первые 24 разряда для 25-значного уникального идентификатора начисления), начиная со старшего разряда, присваивается весовой коэффициент, соответствующий повторяющемуся ряду чисел от 1 до 10;
+  // рассчитываются произведения значений разрядов на соответствующие весовые коэффициенты и вычисляется сумма полученных произведений;
+  // контрольный разряд уникального идентификатора начисления представляет собой остаток от деления полученной суммы на модуль 11 и должен иметь значение от 0 до 9;
+  // если полученный остаток равен 10, проводится повторный расчет с применением второй последовательности весовых коэффициентов, являющейся результатом циклического сдвига исходной последовательности на два разряда влево (3, 4, 5, 6, 7, 8, 9, 10, 1, 2);
+  // в случае если при повторном расчете остаток от деления вновь сохраняется равным 10, то значение контрольного разряда признается равным нулю ("0").
+  //===========================
+  // Получить контрольный разряд УИН
+  function getControlSum(strUin, startVes) {
+    let controlSum = 0;
+    for (let i = 0; i < strUin.length; i++) {
+      let ves = ((i + startVes - 1) % 10) + 1;
+      controlSum += Number(strUin[i]) * ves;
+      //spanText = spanText + '<br> ==> ' + strUin[i] + ' -> ' + ves;
+    }
+    return controlSum % 11;
+  }
+
+  //===========================
+  // Получить УИН по номеру
+  function getUin(valNo,valYr,valDv,valTp) {
+    // Выделяем фрагменты номера
+      const uin19 = '322' + valDv + '000' + valYr + ('0000000' + valNo).slice(-7) + valTp;
+      var crc = getControlSum(uin19, 1);
+      if (crc == 10) {
+        crc = getControlSum(uin19, 3);
+        if (crc == 10) {
+          crc = 0;
+        }
+      }
+    return uin19 + crc;
+  }
+
+  // определяем массив видов начисление
+  const uinTypeId = ['00','01','02','03','04','05','06','07','08','09','10','11','99'];
+  const uinTypeName = [
+    'Взыскания по исполнительным производствам',
+    'Денежные взыскания Российской Федерации об административных правонарушениях, по делам, подведомственным ФССП России',
+    'Возмещение расходов по совершению исполнительских действий, осуществленных Федеральной службой судебных приставов за счет средств федерального бюджета (исполнительские действия в бюджет)','Прочие поступления от денежных взысканий (штрафов) и иных сумм в возмещение ущерба, зачисляемые в федеральный бюджет (материальный ущерб)',
+    'Исполнительский сбор',
+    'Денежные средства, поступающие от реализации конфискованного имущества/обращения в доход государства',
+    'Денежные взыскания (штрафы), установленные УК РФ (уголовные штрафы)',
+    'Доходы, поступающие в порядке возмещения федеральному бюджету средств, выплаченных на покрытие процессуальных издержек (процессуальные издержки)',
+    'Доходы, поступающие в порядке компенсации затрат на мероприятия, проводимые за счет бюджета (компенсация затрат)',
+    'Иные взыскания имущественного характера в пользу бюджетной системы РФ',
+    'Денежные взыскания, налагаемые судами (судебные штрафы)',
+    'Денежные взыскания (штрафы), установленные Кодексом Российской Федерации об административных правонарушениях, по делам, не подведомственным ФССП России',
+    'Денежные взыскания (штрафы), установленные Кодексом Российской Федерации об административных правонарушениях, по делам, не подведомственным ФССП России (сведения о судебном акте не предоставлены)'
+  ];
+
+  // 
+  function isUINTypeValid(valTp) {
+    let isValid = uinTypeId.includes(valTp)
+    document.getElementById('editboxUIN').validity.setCustomValidity('Неверный тип УИН')
+    return isValid
+  }
+
+  //===========================
+  // Отобразить тип УИН
+  function detectUINType() {
+    let uin = document.getElementById('editboxUIN').value;
+    let uinType = uin.substring(17, 19);
+    let uinId = uinTypeId.indexOf(uinType);
+    let uinTypeText =  'Неверно указан номер регистрационный номер входящего запроса суда';
+    if (uinId >= 0) uinTypeText = '* Тип УИН: '+uinTypeName[uinId];
+    document.getElementById('labelUINType').innerHTML = uinTypeText;
+  }
+
+  //===========================
+  // в УИН и обратно
+  function calcUIN(){
+    $edNo = document.getElementById('editboxNo');
+    $edYr = document.getElementById('editboxYr');
+    $edDv = document.getElementById('editboxDv');
+    $edTp = document.getElementById('editboxTp');
+    $edUIN = document.getElementById('editboxUIN');
+    $edUIN.value = getUin($edNo.value,$edYr.value,$edDv.value,$edTp.value);
+    detectUINType('editboxUIN');
+  }
+  function parseUIN(){
+    $edNo = document.getElementById('editboxNo');
+    $edYr = document.getElementById('editboxYr');
+    $edDv = document.getElementById('editboxDv');
+    $edTp = document.getElementById('editboxTp');
+    $edUIN = document.getElementById('editboxUIN');
+    const uin = $edUIN.value
+    $edNo.value = uin.substring(10, 17).replace(/^0+/, '')
+    $edYr.value = uin.substring(8, 10)
+    $edDv.value = uin.substring(3, 5)
+    $edTp.value = uin.substring(17, 19)
+  }
+
+
+  // обработчик для поля ввода
+  function handleInputBox(evt) {
+    // проверка значения типа дохода
+    $edTp = document.getElementById('editboxTp')
+    let valTp = $edTp.value
+    if (uinTypeId.includes(valTp)) {
+      document.getElementById('selectTp').value = valTp
+      $edTp.setCustomValidity('')
+      $edTp.checkValidity()
+    } else {
+      $edTp.setCustomValidity('Неверный тип УИН')
+    }
+    // если измененное значение валидно - вычисляем УИН
+    const isValid = evt.target.checkValidity()
+    if (isValid) {
+      calcUIN()
+    }
+  }
+  // обработчик для выпадающего списка
+  function handleInputBoxUIN(evt) {
+    const isValid = evt.target.checkValidity() 
+    if (isValid) {
+      parseUIN()
+    }
+  }
+
+  // тело скрипта
+
+  // заполнение выпадающего списка видов дохода
+  const $selTp = document.getElementById('selectTp')
+  for (let ind = 0; ind < uinTypeId.length; ind++){
+    let $opt = document.createElement('option');
+    $opt.value = uinTypeId[ind];
+    $opt.text = uinTypeName[ind];
+    $selTp.appendChild($opt)
+  };
+
+  // установка обработчиков событий для выпадающего списка
+  $selTp.addEventListener('input',()=>{
+    document.getElementById('editboxTp').value = $selTp.value
+    detectUINType()  
+  })
+
+  // установка обработчиков событий для полей ввода текста
+  document
+    .getElementById('editboxNo')
+    .addEventListener('input', handleInputBox, false);
+  document
+    .getElementById('editboxYr')
+    .addEventListener('input', handleInputBox, false);
+  document
+    .getElementById('editboxDv')
+    .addEventListener('input', handleInputBox, false);
+  document
+    .getElementById('editboxTp')
+    .addEventListener('input', handleInputBox, false);
+  document
+    .getElementById('editboxUIN')
+    .addEventListener('input', handleInputBoxUIN, false);
+
+</script>
+</body>
+</html>
